@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Game</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            text-align: center;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background-color: #ffe6f9;
+        }
+        h2 {
+            color: #ff66b3;
+            margin: 20px;
+        }
+        p {
+            color: #ff99cc;
+            font-size: 18px;
+        }
+        #maze {
+            margin: 15px auto;
+            border-collapse: collapse;
+            background-color: #ffd1e8;
+            border: 3px solid #ff99c8;
+        }
+        td {
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            border: 1px solid #ff99c8;
+        }
+        .topWall { border-top: 2px solid #ff66b3; }
+        .rightWall { border-right: 2px solid #ff66b3; }
+        .bottomWall { border-bottom: 2px solid #ff66b3; }
+        .leftWall { border-left: 2px solid #ff66b3; }
+        .currentPosition::before {
+            content: "";
+            display: block;
+            width: 80%;
+            height: 80%;
+            margin: auto;
+            background-color: #ffb3c6;
+            border-radius: 50%;
+        }
+        .destination::before {
+            content: "";
+            display: block;
+            width: 80%;
+            height: 80%;
+            margin: auto;
+            background-color: SpringGreen;
+            border-radius: 50%;
+        }
+        button {
+            background-color: #ff66b3;
+            color: white;
+            border: none;
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 10px;
+            box-shadow: 2px 2px 5px #ff99cc;
+        }
+        button:hover {
+            background-color: #ff3381;
+        }
+        #jumpscare {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+            font-size: 24px;
+        }
+        #jumpscare img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #postJumpscare {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 101;
+            color: white;
+            font-size: 24px;
+            flex-direction: column;
+            animation: fadeIn 1s forwards;
+        }
+        #postJumpscare button {
+            margin: 10px;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #postJumpscare .nope { background-color: #ff3333; color: white; }
+        #postJumpscare .yup { background-color: #33ff33; color: white; }
+        #chicken {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 102;
+        }
+        #chicken img {
+            width: 50%;
+            height: 50%;
+            object-fit: contain;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <h2>Maze Game</h2>
+    <p>Level: <span id="levelDisplay">1</span></p>
+    <p>try to reach lv 5!! I bet u can't dummie >:3 </p>
+    <div id="start-buttons">
+        <button onclick="startGame()">Press Me XD</button>
+    </div>
+    <table id="maze"></table>
+    <div id="jumpscare">
+        <img id="jumpscare-image" alt="Jump Scare!" />
+        <audio id="scream-audio" src="scream.mp3"></audio>
+        <button onclick="closeJumpscare()">Close</button>
+    </div>
+    <div id="postJumpscare">
+        <p>lol hehe did I scare you?</p>
+        <button class="nope" onclick="handleNope()">Nope</button>
+        <button class="yup" onclick="handleYup()">Yup</button>
+    </div>
+    <div id="chicken">
+        <img src="cat laughing.jpg" alt="Chicken" />
+        <audio id="laugh-audio" src="laughcat.mp3" autoplay></audio>
+    </div>
+    <audio id="bgm-audio" src="bgm.mp3" loop></audio>
+    <audio id="click-sound" src="click.wav"></audio>
+    <script>
+        const size = 10;
+        let maze, userPosition, gameOver;
+        let currentLevel = 1;
+        const scaryImages = ['1.jpg', '2.webp', '3.png', '4.png'];
+
+        function playButtonSound() {
+            const clickSound = document.getElementById('click-sound');
+            clickSound.play();
+        }
+
+        function startGame() {
+            playButtonSound();
+            document.getElementById('bgm-audio').play();
+            document.getElementById('start-buttons').style.display = 'none';
+            restartGame();
+        }
+
+        function generateMaze(x, y) {
+            const totalCells = x * y;
+            const maze = Array.from({ length: y }, () => Array.from({ length: x }, () => [0, 0, 0, 0]));
+            const unvisited = Array.from({ length: y }, () => Array(x).fill(true));
+            let currentCell = [Math.floor(Math.random() * y), Math.floor(Math.random() * x)];
+            const path = [currentCell];
+            unvisited[currentCell[0]][currentCell[1]] = false;
+            let visited = 1;
+
+            while (visited < totalCells) {
+                const pot = [
+                    [currentCell[0] - 1, currentCell[1], 0, 2],
+                    [currentCell[0], currentCell[1] + 1, 1, 3],
+                    [currentCell[0] + 1, currentCell[1], 2, 0],
+                    [currentCell[0], currentCell[1] - 1, 3, 1]
+                ];
+                const neighbors = pot.filter(([nx, ny]) => nx >= 0 && ny >= 0 && nx < y && ny < x && unvisited[nx][ny]);
+                if (neighbors.length) {
+                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    maze[currentCell[0]][currentCell[1]][next[2]] = 1;
+                    maze[next[0]][next[1]][next[3]] = 1;
+                    unvisited[next[0]][next[1]] = false;
+                    visited++;
+                    currentCell = [next[0], next[1]];
+                    path.push(currentCell);
+                } else {
+                    currentCell = path.pop();
+                }
+            }
+            return maze;
+        }
+
+        function getRandomScaryImage() {
+            const randomIndex = Math.floor(Math.random() * scaryImages.length);
+            return scaryImages[randomIndex];
+        }
+
+        function showJumpscare() {
+            const imageUrl = getRandomScaryImage();
+            document.getElementById('jumpscare-image').src = imageUrl;
+            document.getElementById('jumpscare').style.display = 'flex';
+            document.getElementById('scream-audio').play();
+        }
+
+        function closeJumpscare() {
+            document.getElementById('jumpscare').style.display = 'none';
+            document.getElementById('postJumpscare').style.display = 'flex';
+        }
+
+        function drawMaze() {
+            const table = document.getElementById("maze");
+            table.innerHTML = "";
+            maze.forEach((row, i) => {
+                const tr = document.createElement("tr");
+                row.forEach((cell, j) => {
+                    const td = document.createElement("td");
+                    if (cell[0] === 0) td.classList.add("topWall");
+                    if (cell[1] === 0) td.classList.add("rightWall");
+                    if (cell[2] === 0) td.classList.add("bottomWall");
+                    if (cell[3] === 0) td.classList.add("leftWall");
+                    if (i === size - 1 && j === size - 1) td.classList.add("destination");
+                    if (i === userPosition[0] && j === userPosition[1]) td.classList.add("currentPosition");
+                    tr.appendChild(td);
+                });
+                table.appendChild(tr);
+            });
+        }
+
+        function movePlayer(event) {
+            if (gameOver) return;
+            const [i, j] = userPosition;
+            if ((event.key === "ArrowUp" || event.key === "w") && maze[i][j][0] === 1) userPosition = [i - 1, j];
+            if ((event.key === "ArrowRight" || event.key === "d") && maze[i][j][1] === 1) userPosition = [i, j + 1];
+            if ((event.key === "ArrowDown" || event.key === "s") && maze[i][j][2] === 1) userPosition = [i + 1, j];
+            if ((event.key === "ArrowLeft" || event.key === "a") && maze[i][j][3] === 1) userPosition = [i, j - 1];
+
+            if (currentLevel === 3) {
+                adjustBgmVolume(i, j);
+            }
+
+            if (userPosition[0] === size - 1 && userPosition[1] === size - 1) {
+                gameOver = true;
+                currentLevel++;
+                if (currentLevel > 3) {
+                    fadeOutMusic(); // Fade out music after level 3
+                    showJumpscare();
+                    currentLevel = 1;
+                } else {
+                    document.getElementById("levelDisplay").textContent = currentLevel;
+                    restartGame();
+                }
+            }
+
+            drawMaze();
+        }
+
+        function adjustBgmVolume(playerRow, playerCol) {
+            const bgmAudio = document.getElementById('bgm-audio');
+            const maxDistance = Math.sqrt(2) * (size - 1);
+            const distanceToExit = Math.sqrt(Math.pow(playerRow - (size - 1), 2) + Math.pow(playerCol - (size - 1), 2));
+            const volume = distanceToExit / maxDistance;
+            bgmAudio.volume = volume;
+        }
+
+        function fadeOutMusic() {
+            const bgmAudio = document.getElementById('bgm-audio');
+            let fadeInterval = setInterval(() => {
+                if (bgmAudio.volume > 0) {
+                    bgmAudio.volume = Math.max(0, bgmAudio.volume - 0.01); // Reduce volume gradually
+                } else {
+                    clearInterval(fadeInterval);
+                }
+            }, 100);
+        }
+
+        function handleNope() {
+            document.getElementById('postJumpscare').style.display = 'none';
+            showJumpscare();
+        }
+
+        function handleYup() {
+            document.getElementById('postJumpscare').style.display = 'none';
+            document.getElementById('chicken').style.display = 'flex';
+            document.getElementById('laugh-audio').play();
+        }
+
+        function restartGame() {
+            maze = generateMaze(size, size);
+            userPosition = [0, 0];
+            gameOver = false;
+            drawMaze();
+        }
+
+        document.addEventListener("keydown", movePlayer);
+    </script>
+    
+</body>
+</html>
